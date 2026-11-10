@@ -1,0 +1,2 @@
+../Core/Src/ntc_sensor.c:13:6:NTC_Init	16	static
+../Core/Src/ntc_sensor.c:19:6:NTC_Update	24	static

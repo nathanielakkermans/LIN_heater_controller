@@ -1,0 +1,2 @@
+../Core/Src/temp_controller.c:14:6:TempCtrl_Init	4	static
+../Core/Src/temp_controller.c:20:6:TempCtrl_Update	24	static

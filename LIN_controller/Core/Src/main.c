@@ -21,7 +21,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "app_io.h"
+#include "ntc_sensor.h"
+#include "ptc_heater.h"
+#include "temp_controller.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,13 +101,20 @@ int main(void)
   MX_CAN_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  IO_Init();
+  NTC_Init(&hadc1);
+  PTC_Init(&huart1);
+  TempCtrl_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  IO_Update();       // Leest IN1..6, stuurt Pomp en LEDs aan
+	  NTC_Update();      // Leest ADC1 en berekent NTC temperatuur
+	  PTC_Update();      // Verstuurt en ontvangt LIN frames (elke 50ms)
+	  TempCtrl_Update(); // P-Regelaar en systeemlogica (elke 100ms)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -194,7 +204,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_7;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -258,7 +268,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 19200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -292,24 +302,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, IN6_Pin|LIN_NSLP_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, PumpDO_Pin|LED_ERR_Pin|StatusLED_Pin|LIN_WAKE_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LIN_NSLP_GPIO_Port, LIN_NSLP_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : IN1_Pin IN2_Pin IN3_Pin IN4_Pin
-                           IN5_Pin */
+                           IN5_Pin IN6_Pin */
   GPIO_InitStruct.Pin = IN1_Pin|IN2_Pin|IN3_Pin|IN4_Pin
-                          |IN5_Pin;
+                          |IN5_Pin|IN6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : IN6_Pin LIN_NSLP_Pin */
-  GPIO_InitStruct.Pin = IN6_Pin|LIN_NSLP_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PumpDO_Pin LED_ERR_Pin StatusLED_Pin LIN_WAKE_Pin */
@@ -319,13 +322,33 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : LIN_NSLP_Pin */
+  GPIO_InitStruct.Pin = LIN_NSLP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LIN_NSLP_GPIO_Port, &GPIO_InitStruct);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1)
+  {
+    PTC_RxCallback(huart);
+  }
+}
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART1) {
+        volatile uint32_t err = HAL_UART_GetError(huart);
+        (void)err; // Inspecteer 'err' in de debugger (bijv. Overrun Error of Framing Error)
+    }
+}
 /* USER CODE END 4 */
 
 /**
