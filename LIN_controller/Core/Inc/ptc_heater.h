@@ -4,29 +4,34 @@
 #include "main.h"
 #include <stdbool.h>
 
+typedef enum {
+    LIN_STATE_WAIT_SYNC = 0,
+    LIN_STATE_WAIT_PID,
+    LIN_STATE_READ_DATA
+} LIN_RxState_t;
+
 typedef struct {
     // --- Verzenden (ID 0x04) ---
-    bool     enable;         // false = Standby (0x80), true = Vermogen vragen
-    uint8_t  power_pct;      // 0 t/m 100 %
+    bool     enable;
+    uint8_t  power_pct;
 
     // --- Ontvangen (ID 0x25) ---
-    int8_t   temp_c;         // Interne koelwatertemperatuur van de kachel (°C)
-    float    current_a;      // Stroom in Ampère (0.1 A per bit)
-    float    hv_voltage;     // Hoogspanning in Volt
+    int8_t   temp_c;
+    float    current_a;
+    float    hv_voltage;
 
     // --- Diagnose & Buffers ---
-    uint8_t  rx_buffer_raw[11];
-    uint8_t  rx_buffer[9];
-    bool     data_valid;     // Wordt true zodra er 1 geldig pakket is ontvangen
-    bool     comm_error;     // true als de kachel > 1 seconde niet antwoordt
-    uint16_t error_count;    // Checksum foutenteller
-    uint32_t last_rx_tick;   // Tijdstip van laatst geslaagde LIN-ontvangst
+    uint8_t  rx_buffer[9];   // We slaan nu alleen de 8 databytes + 1 checksum byte op
+    bool     data_valid;
+    bool     comm_error;
+    uint16_t error_count;
+    uint32_t last_rx_tick;
 } PTC_Heater_t;
 
 extern PTC_Heater_t ptc;
 
 void PTC_Init(UART_HandleTypeDef *huart);
 void PTC_Update(void);
-void PTC_RxCallback(UART_HandleTypeDef *huart);
+void PTC_ProcessByte(uint8_t byte);
 
 #endif /* PTC_HEATER_H */

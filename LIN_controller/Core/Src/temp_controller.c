@@ -48,13 +48,13 @@ void TempCtrl_Update(void) {
     else                         ctrl.max_duty_limit = 100;
 
     // 3. Controleer op Overtemperatuur of Sensor/LIN fouten
-    if (ntc.temp_c > OVERTEMP_LIMIT_C ){//|| (ptc.data_valid && ptc.temp_c > 92)) {
+    if (ntc.temp_c > OVERTEMP_LIMIT_C || (ptc.data_valid && ptc.temp_c > 92)) {
         ctrl.overtemp_fault = true;
     } else if (ntc.temp_c < (OVERTEMP_LIMIT_C - 5.0f) && ptc.temp_c < 85) {
         ctrl.overtemp_fault = false;
     }
 
-    bool any_fault = (ntc.fault  || ctrl.overtemp_fault );//|| ptc.comm_error);
+    bool any_fault = (ntc.fault  || ctrl.overtemp_fault || ptc.comm_error);
 
     // 4. Pomp Aansturing (inclusief 30 seconden nalooptijd)
     if (ctrl.system_active) {

@@ -105,6 +105,9 @@ int main(void)
   NTC_Init(&hadc1);
   PTC_Init(&huart1);
   TempCtrl_Init();
+
+  // Activeer de RXNE interrupt (elke byte genereert nu een interrupt)
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -335,19 +338,33 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if (huart->Instance == USART1)
-  {
-    PTC_RxCallback(huart);
-  }
-}
+/* Krijg de actuele PTC buffer index en status (gedefinieerd in ptc_heater.c) */
+extern void PTC_ProcessByte(uint8_t byte);
 
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        volatile uint32_t err = HAL_UART_GetError(huart);
-        (void)err; // Inspecteer 'err' in de debugger (bijv. Overrun Error of Framing Error)
+/* We overschrijven de standaard HAL IRQ handler voor USART1 om HAL-errors te omzeilen */
+void USART1_IRQHandler(void)
+{
+    // Lees direct het statusregister en dataregister
+    uint32_t isrflags   = USART1->SR;
+    uint32_t cr1its     = USART1->CR1;
+    uint32_t errorflags = (isrflags & (uint32_t)(USART_SR_PE | USART_SR_FE | USART_SR_ORE | USART_SR_NE));
+
+    // Als we een error hebben (bijv. door de LIN Break), clear die dan direct
+    if (errorflags != RESET) {
+        // Leeglezen van DR cleart de error flags op de STM32F1
+        volatile uint8_t tmpreg = (uint8_t)(USART1->DR & (uint8_t)0x00FF);
+        (void)tmpreg;
+        return; // Negeer de foute byte en wacht op de volgende
     }
+
+    // Als we een schone byte hebben ontvangen:
+    if (((isrflags & USART_SR_RXNE) != RESET) && ((cr1its & USART_CR1_RXNEIE) != RESET)) {
+        uint8_t rx_byte = (uint8_t)(USART1->DR & (uint8_t)0x00FF);
+        PTC_ProcessByte(rx_byte); // Stuur hem naar onze state machine
+    }
+
+    // Laat de HAL eventuele TX interrupts of andere zaken netjes afhandelen
+    HAL_UART_IRQHandler(&huart1);
 }
 /* USER CODE END 4 */
 

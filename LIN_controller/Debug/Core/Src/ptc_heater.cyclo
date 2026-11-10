@@ -1,7 +1,7 @@
-../Core/Src/ptc_heater.c:6:16:LIN_CalcChecksum	3
-../Core/Src/ptc_heater.c:15:16:LIN_CalcPID	1
-../Core/Src/ptc_heater.c:21:6:PTC_Init	1
-../Core/Src/ptc_heater.c:34:13:PTC_SendControl	3
-../Core/Src/ptc_heater.c:62:13:PTC_RequestData	1
-../Core/Src/ptc_heater.c:77:6:PTC_RxCallback	6
-../Core/Src/ptc_heater.c:103:6:PTC_Update	4
+../Core/Src/ptc_heater.c:11:16:LIN_CalcChecksum	3
+../Core/Src/ptc_heater.c:20:16:LIN_CalcPID	1
+../Core/Src/ptc_heater.c:26:6:PTC_Init	1
+../Core/Src/ptc_heater.c:40:6:PTC_ProcessByte	10
+../Core/Src/ptc_heater.c:89:13:PTC_SendControl	3
+../Core/Src/ptc_heater.c:115:13:PTC_RequestData	1
+../Core/Src/ptc_heater.c:128:6:PTC_Update	4
